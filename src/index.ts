@@ -4,10 +4,10 @@ class AsyncSource<T>{
     private isFetchedData: boolean;
     private lastRequestId: number|null;
     readonly onError: Function;
-    readonly serviceMethod: (...args: Array<unknown>) => Promise<T>;
+    readonly serviceMethod: (...args: Array<any>) => Promise<T>;
     readonly debounceTime: number;
 
-    constructor(serviceMethod: (...args: Array<unknown>) => Promise<T>, errorHandler = () => {}, debounceTime = 100) {
+    constructor(serviceMethod: (...args: Array<any>) => Promise<T>, errorHandler = () => {}, debounceTime = 100) {
         this.responseData = null;
         this.isRequestPending = false;
         this.isFetchedData = false;
@@ -31,18 +31,18 @@ class AsyncSource<T>{
     }
 
     // Loads new dataSouse data
-    async update(...args: Array<unknown>): Promise<void> {
+    async update(...args: Array<any>): Promise<void> {
         await this.request(args, null);
     }
 
     // Loads new dataSouse data if data is empty
-    async updateIfEmpty(...args: Array<unknown>): Promise<void> {
+    async updateIfEmpty(...args: Array<any>): Promise<void> {
         if (this.data) return;
         await this.request(args, null);
     }
 
     // Loads new dataSouse data and calls successHandler with response
-    async push(successHandler: (response: T) => unknown, ...args: Array<unknown>): Promise<void> {
+    async push(successHandler: (response: T) => unknown, ...args: Array<any>): Promise<void> {
         await this.request(args, successHandler);
     }
 
@@ -52,7 +52,7 @@ class AsyncSource<T>{
     }
 
     // Core request method
-    private async request(args: Array<unknown>, successHandler: ((response: T) => void) | null) {
+    private async request(args: Array<any>, successHandler: ((response: T) => void) | null) {
         this.isRequestPending = true;
 
         const requestId = await this.createRequestId();
