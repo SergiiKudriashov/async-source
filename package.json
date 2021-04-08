@@ -4,7 +4,11 @@
   "description": "async requests wrapper",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "test.js",
+    "build": "tsc --project tsconfig.json",
+    "publish-patch": "npm test && npm run build && npm version patch && git push && npm publish --registry https://registry.npmjs.org/",
+    "publish-minor": "npm test && npm run build && npm version minor && git push && npm publish --registry https://registry.npmjs.org/",
+    "publish-major": "npm test && npm run build && npm version major && git push && npm publish --registry https://registry.npmjs.org/"
   },
   "repository": {
     "type": "git",
@@ -19,5 +23,8 @@
   "bugs": {
     "url": "https://github.com/SergiiKudriashov/async-source/issues"
   },
-  "homepage": "https://github.com/SergiiKudriashov/async-source#readme"
+  "homepage": "https://github.com/SergiiKudriashov/async-source#readme",
+  "files": [
+    "dist/*"
+  ]
 }
