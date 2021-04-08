@@ -1,5 +1,5 @@
 {
-  "name": "reliable-source",
+  "name": "async-source",
   "version": "1.0.0",
   "description": "async requests wrapper",
   "main": "index.js",
