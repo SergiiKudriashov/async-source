@@ -2,16 +2,15 @@
   "name": "async-source",
   "version": "1.0.0",
   "description": "async requests wrapper",
-  "main": "dist/index.js",
+  "main": "dist/index.min.js",
   "scripts": {
     "test": "test.js",
-    "build": "tsc --project tsconfig.json",
+    "build": "tsc --project tsconfig.json && uglifyjs ./dist/index.js -o ./dist/index.min.js --source-map",
     "publish-patch": "npm test && npm run build && npm version patch && git push && npm publish --registry https://registry.npmjs.org",
     "publish-minor": "npm test && npm run build && npm version minor && git push && npm publish --registry https://registry.npmjs.org",
     "publish-major": "npm test && npm run build && npm version major && git push && npm publish --registry https://registry.npmjs.org"
   },
-  "dependencies": {
-  },
+  "dependencies": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/SergiiKudriashov/async-source.git"
@@ -32,6 +31,9 @@
   "engines": {
     "node": ">=8"
   },
-  "module": "dist/index.js",
-  "browser": "dist/index.js"
+  "module": "dist/index.min.js",
+  "browser": "dist/index.min.js",
+  "devDependencies": {
+    "uglify-js": "^3.13.3"
+  }
 }
