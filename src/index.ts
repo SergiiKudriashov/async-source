@@ -32,13 +32,13 @@ class AsyncSource<T>{
 
     // Loads new dataSouse data
     async update(...args: Array<any>): Promise<void> {
-        await this.request(args, null);
+        await this.request(args);
     }
 
     // Loads new dataSouse data if data is empty
     async updateIfEmpty(...args: Array<any>): Promise<void> {
         if (this.data) return;
-        await this.request(args, null);
+        await this.request(args);
     }
 
     // Loads new dataSouse data and calls successHandler with response
@@ -52,7 +52,7 @@ class AsyncSource<T>{
     }
 
     // Core request method
-    private async request(args: Array<any>, successHandler: ((response: T) => void) | null) {
+    private async request(args: Array<any>, successHandler?: ((response: T) => void)) {
         this.isRequestPending = true;
 
         const requestId = await this.createRequestId();
@@ -81,7 +81,7 @@ class AsyncSource<T>{
         const requestId = Date.now();
         this.lastRequestId = requestId;
         if (isFirstRequest) {
-            return new Promise(resolve => resolve(requestId));
+            return Promise.resolve(requestId);
         }
         return new Promise(resolve => setTimeout(() => {
             resolve(requestId);
