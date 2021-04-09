@@ -1,6 +1,6 @@
 {
   "name": "async-source",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "async requests wrapper",
   "main": "dist/index.min.js",
   "scripts": {
