@@ -1,4 +1,4 @@
-# AsyncSource
+# AsyncSource #
 With AsyncSource you can
 * Create stateful reactive data source for asynchronous requests
 * Handle errors
@@ -9,13 +9,13 @@ With AsyncSource you can
 In case of multiple calls - only last call will be processed.
 Connect AsyncSource to your dynamic selects with in build debounce
 
-### Install
+### Install ###
 ```
 npm install --save async-source
 ```
 
 
-### Usage
+### Usage ###
 ```javascript
 // javascript
 import AsyncSource from 'async-source';
@@ -40,21 +40,21 @@ async function loadItems() {
 }
 ```
 
-#### Parameters
+#### Parameters ###
 **Parameter** | **Is required** | **Description**
 --- | --- | ---
 serviceMethod | true | Method that returns promise
 errorHandler | false | Function that will be called in case of service method rejected
 delay | false | delay in ms
 
-#### Properties(reactive getters)
+#### Properties(reactive getters) ####
 **Property** | **Description** | **Type**
 --- | --- | ---
 data | Returns your method response | Your method response
 isLoading | Returns *true* when request pending | Boolean
 isFetch | Returns *true* after first load | Boolean
 
-#### Methods
+#### Methods ####
 **Method** | **Description** | **Params**
 --- | --- | ---
 update | Calls be request | Your method request params
@@ -62,7 +62,7 @@ push | Calls be request and handles success response | Success handler, Your met
 updateIfEmpty | Calls be request in source data is empty  | Your method request params
 clear | Set source data to initial state(*null*) | ---
 
-#### Usage with vue3(composition api)
+#### Usage with vue3(composition api) ####
 ```vue
 <template>
     <ul v-loading="isLoading">
@@ -100,7 +100,7 @@ export default {
 </script>
 ```
 
-#### Usage with vue2(option api)
+#### Usage with vue2(option api) ####
 ```vue
 <template>
     <ul v-loading="isLoading">
