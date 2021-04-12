@@ -1,8 +1,10 @@
 type PromiseResult<T> = T extends PromiseLike<infer U> ? U : T;
-type ServiceMethod<T = any> = (...args: Array<any>) => Promise<T>;
+export type ResponseData<T> = T|null;
+export type ServiceMethod<T = any> = (...args: Array<any>) => Promise<T>;
+export type ErrorHandler = (error?: Error) => void;
 
 class AsyncSource<T>{
-    readonly onError: Function;
+    readonly onError: ErrorHandler;
     readonly serviceMethod: ServiceMethod<T>;
     readonly debounceTime: number;
     private responseData: PromiseResult<ReturnType<ServiceMethod>> = null;
@@ -10,13 +12,13 @@ class AsyncSource<T>{
     private isFetchedData = false;
     private lastRequestId: number|null = null;
 
-    constructor(serviceMethod: ServiceMethod<T>, errorHandler = () => {}, debounceTime = 100) {
+    constructor(serviceMethod: ServiceMethod<T>, errorHandler: ErrorHandler, debounceTime = 100) {
         this.serviceMethod = serviceMethod;
         this.debounceTime = debounceTime;
         this.onError = errorHandler;
     }
     // Response data getter
-    get data(): T|null {
+    get data(): ResponseData<T> {
         return this.responseData;
     }
     // Is loading state getter
@@ -62,14 +64,14 @@ class AsyncSource<T>{
                 this.isRequestPending = false;
                 this.isFetchedData = true;
                 this.responseData = response;
-                if (successHandler) successHandler(response);
+                successHandler?.(response);
             }
         } catch (error) {
             if (this.isLastRequest(requestId)) {
                 this.isRequestPending = false;
                 this.isFetchedData = true;
                 this.responseData = null;
-                this.onError(error);
+                this.onError?.(error);
             }
         }
     }
