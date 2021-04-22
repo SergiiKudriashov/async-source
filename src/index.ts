@@ -18,27 +18,32 @@ class AsyncSource<T>{
         this.onError = errorHandler;
     }
     // Response data getter
-    get data(): ResponseData<T> {
+    public get data(): ResponseData<T> {
         return this.responseData;
     }
     // Is loading state getter
-    get isLoading() {
+    public get isLoading() {
         return this.isRequestPending;
     }
     // Is fetched once state getter
-    get isFetch() {
+    public get isFetch() {
         return this.isFetchedData;
     }
 
     // Loads new dataSouse data
-    async update(...args: Array<any>): Promise<void> {
+    public async update(...args: Array<any>): Promise<void> {
         await this.request(args);
     }
 
     // Loads new dataSouse data if data is empty
-    async updateIfEmpty(...args: Array<any>): Promise<void> {
+    public async updateIfEmpty(...args: Array<any>): Promise<void> {
         if (this.data) return;
         await this.request(args);
+    }
+
+    // Loads new dataSouse data ignoring debounce time
+    public async updateImmediate(...args: Array<any>): Promise<void> {
+        await this.request(args, undefined, true);
     }
 
     // Loads new dataSouse data and calls successHandler with response
@@ -52,10 +57,10 @@ class AsyncSource<T>{
     }
 
     // Core request method
-    private async request(args: Array<any>, successHandler?: ((response: T) => void)) {
+    private async request(args: Array<any>, successHandler?: ((response: T) => void), isImmediate?: boolean) {
         this.isRequestPending = true;
 
-        const requestId = await this.createRequestId();
+        const requestId = await this.createRequestId(isImmediate);
         if (!this.isLastRequest(requestId)) return;
 
         try {
@@ -76,11 +81,11 @@ class AsyncSource<T>{
         }
     }
 
-    private createRequestId(): Promise<number> {
+    private createRequestId(isImmediate?: boolean): Promise<number> {
         const isFirstRequest = !this.lastRequestId;
         const requestId = Date.now();
         this.lastRequestId = requestId;
-        if (isFirstRequest) {
+        if (isFirstRequest || isImmediate) {
             return Promise.resolve(requestId);
         }
 
