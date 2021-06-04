@@ -77,6 +77,7 @@ class AsyncSource<T>{
                 this.isFetchedData = true;
                 this.responseData = null;
                 this.onError?.(error);
+                throw Error(error);
             }
         }
     }
