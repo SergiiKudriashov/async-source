@@ -1,7 +1,7 @@
 type PromiseResult<T> = T extends PromiseLike<infer U> ? U : T;
 export type ResponseData<T> = T|null;
 export type ServiceMethod<T = any> = (...args: Array<any>) => Promise<T>;
-export type ErrorHandler = (error?: Error) => void;
+export type ErrorHandler = (error: Error) => void;
 
 class AsyncSource<T>{
     readonly onError: ErrorHandler;
