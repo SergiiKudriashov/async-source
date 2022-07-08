@@ -1,7 +1,7 @@
 type PromiseResult<T> = T extends PromiseLike<infer U> ? U : T;
 export type ResponseData<T> = T|null;
 export type ServiceMethod<T = any> = (...args: Array<any>) => Promise<T>;
-export type ErrorHandler = (error?: Error) => void;
+export type ErrorHandler = (error: Error & any) => void;
 
 class AsyncSource<T>{
     readonly onError: ErrorHandler;
@@ -31,24 +31,24 @@ class AsyncSource<T>{
     }
 
     // Loads new dataSouse data
-    public async update(...args: Array<any>): Promise<void> {
-        await this.request(args);
+    public update(...args: Array<any>): Promise<void | T> {
+        return this.request(args);
     }
 
     // Loads new dataSouse data if data is empty
-    public async updateIfEmpty(...args: Array<any>): Promise<void> {
-        if (this.data) return;
-        await this.request(args);
+    public updateIfEmpty(...args: Array<any>): Promise<void | T> {
+        if (this.data) return Promise.resolve();
+        return this.request(args);
     }
 
     // Loads new dataSouse data ignoring debounce time
-    public async updateImmediate(...args: Array<any>): Promise<void> {
-        await this.request(args, undefined, true);
+    public updateImmediate(...args: Array<any>): Promise<void | T> {
+        return this.request(args, undefined, true);
     }
 
     // Loads new dataSouse data and calls successHandler with response
-    async push(successHandler: (response: T) => unknown, ...args: Array<any>): Promise<void> {
-        await this.request(args, successHandler);
+    push(successHandler: (response: T) => unknown, ...args: Array<any>): Promise<void | T> {
+        return this.request(args, successHandler);
     }
 
     // Clear source data
@@ -71,14 +71,17 @@ class AsyncSource<T>{
                 this.responseData = response;
                 successHandler?.(response);
             }
+
+            return response;
         } catch (error) {
             if (this.isLastRequest(requestId)) {
                 this.isRequestPending = false;
                 this.isFetchedData = true;
                 this.responseData = null;
                 this.onError?.(error);
-                throw Error(error);
             }
+
+            throw error;
         }
     }
 
