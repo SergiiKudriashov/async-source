@@ -1,12 +1,13 @@
 {
   "name": "async-source",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "async requests wrapper",
   "main": "dist/index.min.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "test": "test.js",
     "build": "tsc --project tsconfig.json && uglifyjs ./dist/index.js -o ./dist/index.min.js --source-map",
+    "publish-manual": "npm publish --registry https://registry.npmjs.org",
     "publish-patch": "npm test && npm run build && npm version patch && git push && npm publish --registry https://registry.npmjs.org",
     "publish-minor": "npm test && npm run build && npm version minor && git push && npm publish --registry https://registry.npmjs.org",
     "publish-major": "npm test && npm run build && npm version major && git push && npm publish --registry https://registry.npmjs.org"

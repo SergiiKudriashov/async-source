@@ -53,8 +53,8 @@ class AsyncSource<T>{
 
     // Clear source data
     clear(): void {
-        this.responseData = null;
         this.isFetchedData = false;
+        this.responseData = null;
     }
 
     // Core request method
