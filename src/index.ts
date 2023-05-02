@@ -12,7 +12,11 @@ class AsyncSource<T>{
     private isFetchedData = false;
     private lastRequestId: number|null = null;
 
-    constructor(serviceMethod: ServiceMethod<T>, errorHandler: ErrorHandler = () => {}, debounceTime = 100) {
+    constructor(
+        serviceMethod: ServiceMethod<T>,
+        errorHandler: ErrorHandler = () => {},
+        debounceTime = 100
+    ) {
         this.serviceMethod = serviceMethod;
         this.debounceTime = debounceTime;
         this.onError = errorHandler;
@@ -77,7 +81,7 @@ class AsyncSource<T>{
                 this.isRequestPending = false;
                 this.isFetchedData = true;
                 this.responseData = null;
-                this.onError?.(error);
+                this.onError(error as Error);
             }
         }
     }
