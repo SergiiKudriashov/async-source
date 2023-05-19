@@ -55,13 +55,14 @@ isLoading | Returns *true* when request pending | Boolean
 isFetch | Returns *true* after first load | Boolean
 
 #### Methods ####
-**Method** | **Description** | **Params**
---- | --- | ---
-update | Calls be request | Your method request params
-push | Calls be request and handles success response | Success handler, Your method request params
-updateIfEmpty | Calls be request in source if data is empty  | Your method request params
-updateImmediate | Calls be request in source ignoring debounce  | Your method request params
-clear | Set source data to initial state(*null*) | ---
+**Method** | **Description**                                                                   | **Params**
+--- |-----------------------------------------------------------------------------------| ---
+update | Calls be request                                                                  | Your method request params
+push | Calls be request and handles success response                                     | Success handler, Your method request params
+updateIfEmpty | Calls be request in source if data is empty                                       | Your method request params
+updateOnce | Calls be request in source if data is empty and waits till other request resolved | Your method request params
+updateImmediate | Calls be request in source ignoring debounce                                      | Your method request params
+clear | Set source data to initial state(*null*)                                          | ---
 
 #### Usage with vue3(composition api) ####
 ```vue
