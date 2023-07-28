@@ -50,7 +50,7 @@ class AsyncSource<T>{
             await new Promise(resolve => setTimeout(resolve, 100));
             await this.updateOnce(...args);
         } else {
-            await this.updateIfEmpty()
+            await this.updateIfEmpty(...args);
         }
     }
 
