@@ -10,7 +10,7 @@ class AsyncSource<T> {
     private responseData: PromiseResult<ReturnType<ServiceMethod>> = null;
     private isRequestPending = false;
     private isFetchedData = false;
-    private lastRequestId: number | null = null;
+    private lastRequestId: number = 0;
 
     constructor(
         serviceMethod: ServiceMethod<T>,
@@ -48,6 +48,15 @@ class AsyncSource<T> {
         await this.request(args);
     }
 
+    public async updateOnce(...args: Array<any>): Promise<void> {
+        if (this.isLoading) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await this.updateOnce(...args);
+        } else {
+            await this.updateIfEmpty(...args);
+        }
+    }
+
     // Loads new dataSouse data ignoring debounce time
     public async updateImmediate(...args: Array<any>): Promise<void> {
         await this.request(args, undefined, true);
@@ -62,6 +71,7 @@ class AsyncSource<T> {
     clear(): void {
         this.isFetchedData = false;
         this.responseData = null;
+        this.lastRequestId = 0;
     }
 
     // Core request method
@@ -91,7 +101,7 @@ class AsyncSource<T> {
 
     private createRequestId(isImmediate?: boolean): Promise<number> {
         const isFirstRequest = !this.lastRequestId;
-        const requestId = Date.now();
+        const requestId = this.lastRequestId + 1;
         this.lastRequestId = requestId;
         if (isFirstRequest || isImmediate) {
             return Promise.resolve(requestId);
