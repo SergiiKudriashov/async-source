@@ -1,16 +1,16 @@
 type PromiseResult<T> = T extends PromiseLike<infer U> ? U : T;
-export type ResponseData<T> = T|null;
+export type ResponseData<T> = T;
 export type ServiceMethod<T = any> = (...args: Array<any>) => Promise<T>;
 export type ErrorHandler = (error: Error) => void;
 
-class AsyncSource<T>{
+class AsyncSource<T> {
     readonly onError: ErrorHandler;
     readonly serviceMethod: ServiceMethod<T>;
     readonly debounceTime: number;
     private responseData: PromiseResult<ReturnType<ServiceMethod>> = null;
     private isRequestPending = false;
     private isFetchedData = false;
-    private lastRequestId: number|null = null;
+    private lastRequestId: number | null = null;
 
     constructor(
         serviceMethod: ServiceMethod<T>,
@@ -21,14 +21,17 @@ class AsyncSource<T>{
         this.debounceTime = debounceTime;
         this.onError = errorHandler;
     }
+
     // Response data getter
     public get data(): ResponseData<T> {
         return this.responseData;
     }
+
     // Is loading state getter
     public get isLoading() {
         return this.isRequestPending;
     }
+
     // Is fetched once state getter
     public get isFetch() {
         return this.isFetchedData;
