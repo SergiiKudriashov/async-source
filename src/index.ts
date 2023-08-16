@@ -10,7 +10,7 @@ class AsyncSource<T> {
     private responseData: PromiseResult<ReturnType<ServiceMethod>> = null;
     private isRequestPending = false;
     private isFetchedData = false;
-    private lastRequestId: number = 0;
+    private lastRequestId = 0;
 
     constructor(
         serviceMethod: ServiceMethod<T>,
