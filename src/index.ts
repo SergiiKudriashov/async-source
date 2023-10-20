@@ -69,6 +69,7 @@ class AsyncSource<T> {
 
     // Clear source data
     clear(): void {
+        this.isRequestPending = false;
         this.isFetchedData = false;
         this.responseData = null;
         this.lastRequestId = 0;
