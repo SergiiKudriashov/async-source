@@ -5,16 +5,17 @@ interface AsyncStorage {
 }
 
 interface AsyncSourceConfig {
-    storage?: CacheStorage;
-    time?: number;
-    prefix?: string;
+    cacheStorage?: CacheStorage;
+    cacheTime?: number;
+    cachePrefix?: string;
 }
 
 interface AsyncSourceInstanceConfig {
     debounceTime?: number;
-    cacheKey?: string;
+    requestCacheKey?: string;
     cacheTime?: number;
-    storage?: CacheStorage;
+    cacheStorage?: CacheStorage;
+    isUpdateCache?: boolean;
 }
 
 type CacheStorage = AsyncStorage | Storage | undefined | null;
@@ -34,68 +35,74 @@ class AsyncSource<T> {
     private lastRequestId = 0;
     private cacheKey?: string;
     private cacheTime: number;
-    private storage: CacheStorage | null = null;
-    private args: string = '';
+    private cacheStorage: CacheStorage | null = null;
+    private requestParams = '';
+    private isUpdateRequestCache = true;
     private static defaultCacheTime = 12 * 60 * 60 * 1000;
     private static defaultStorage: CacheStorage = localStorage;
-    private static prefix = 'AsyncSource';
+    private static cachePrefix = 'AsyncSource';
 
     constructor(
         serviceMethod: ServiceMethod<T>,
         errorHandler: ErrorHandler,
         debounceTime?: number,
-        cacheKey?: string,
+        requestCacheKey?: string,
         cacheTime?: number,
-        storage?: CacheStorage
+        cacheStorage?: CacheStorage,
+        isUpdateCache?: boolean
     );
 
     constructor(
         serviceMethod: ServiceMethod<T>,
-        errorHandler?: ErrorHandler,
-        config?: AsyncSourceInstanceConfig,
+        errorHandler?: ErrorHandler, 
+        config?: AsyncSourceInstanceConfig
     );
 
     constructor(
         serviceMethod: ServiceMethod<T>,
         errorHandler: ErrorHandler = () => {},
         debounceTimeOrConfig: DebounceTimeOrConfig = 100,
-        cacheKey?: string,
+        requestCacheKey?: string,
         cacheTime: number = AsyncSource.defaultCacheTime,
-        storage: CacheStorage = AsyncSource.defaultStorage
+        cacheStorage: CacheStorage = AsyncSource.defaultStorage,
+        isUpdateCache = true
     ) {
         this.serviceMethod = serviceMethod;
         this.onError = errorHandler;
 
         if (typeof debounceTimeOrConfig === 'number') {
             this.debounceTime = debounceTimeOrConfig;
-            this.cacheKey = cacheKey ? `${AsyncSource.prefix}-${cacheKey}` : undefined;
+            this.cacheKey = requestCacheKey ? `${AsyncSource.cachePrefix}-${requestCacheKey}` : undefined;
             this.cacheTime = cacheTime;
-            this.storage = storage;
+            this.cacheStorage = cacheStorage;
+            this.isUpdateRequestCache = isUpdateCache;
         } else {
             const {
                 debounceTime = 100,
-                cacheKey,
+                requestCacheKey,
                 cacheTime = AsyncSource.defaultCacheTime,
-                storage = AsyncSource.defaultStorage
+                cacheStorage = AsyncSource.defaultStorage,
+                isUpdateCache = true
             } = debounceTimeOrConfig;
 
             this.debounceTime = debounceTime;
-            this.cacheKey = cacheKey ?  `${AsyncSource.prefix}-${cacheKey}` : undefined;
+            this.cacheKey = requestCacheKey ? `${AsyncSource.cachePrefix}-${requestCacheKey}` : undefined;
             this.cacheTime = cacheTime;
-            this.storage = storage;
+            this.cacheStorage = cacheStorage;
+            this.isUpdateRequestCache = isUpdateCache;
         }
     }
 
     // Set cache config
     static setConfig(config: AsyncSourceConfig) {
-        if (config.storage) {
-            AsyncSource.defaultStorage = config.storage;
+        if (config.cacheStorage) {
+            AsyncSource.defaultStorage = config.cacheStorage;
         }
-        if (typeof config.time === 'number') {
-            AsyncSource.defaultCacheTime = config.time;
+        if (typeof config.cacheTime === 'number') {
+            AsyncSource.defaultCacheTime = config.cacheTime;
         }
-        if (config.prefix) {
-            AsyncSource.prefix = config.prefix;
+        if (config.cachePrefix) {
+            AsyncSource.cachePrefix = config.cachePrefix;
         }
     }
 
@@ -127,7 +134,7 @@ class AsyncSource<T> {
 
     public async updateOnce(...args: Array<any>): Promise<void> {
         if (this.isLoading) {
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
             await this.updateOnce(...args);
         } else {
             await this.updateIfEmpty(...args);
@@ -150,11 +157,12 @@ class AsyncSource<T> {
         this.isFetchedData = false;
         this.responseData = null;
         this.lastRequestId = 0;
+        this.requestParams = '';
 
         const cacheKey = this.getCacheKey();
 
         if (cacheKey) {
-            new Promise((resolve) => resolve(this.storage?.removeItem(cacheKey)));
+            new Promise((resolve) => resolve(this.cacheStorage?.removeItem(cacheKey)));
         }
     }
 
@@ -170,8 +178,8 @@ class AsyncSource<T> {
     private getCacheKey() {
         if (!this.cacheKey) return;
 
-        if (this.args) {
-            return `${this.cacheKey}-${this.args}`;
+        if (this.requestParams) {
+            return `${this.cacheKey}-${this.requestParams}`;
         }
         return this.cacheKey;
     }
@@ -181,7 +189,7 @@ class AsyncSource<T> {
 
         if (!cacheKey) return null;
 
-        const storedData = await new Promise<string | null | undefined>((resolve) => resolve(this.storage?.getItem(cacheKey)));
+        const storedData = await new Promise<string | null | undefined>((resolve) => resolve(this.cacheStorage?.getItem(cacheKey)));
 
         if (storedData) {
             try {
@@ -189,18 +197,18 @@ class AsyncSource<T> {
                 const isExpired = Date.now() - timestamp > this.cacheTime;
                 return isExpired ? null : (data as PromiseResult<T>);
             } catch (error) {
-                this.onError(error as Error);
+                console.warn({ message: `Cache getting error cacheKey:${cacheKey}`, error });
             }
         }
         return null;
     }
 
-    private setArgs(args: Array<any>) {
-        if (args) {
+    private setRequestParams(requestParams: Array<any>) {
+        if (requestParams.length > 0) {
             try {
-                this.args = JSON.stringify(args);
+                this.requestParams = JSON.stringify(requestParams);
             } catch (error) {
-                this.onError(error as Error);
+                console.warn({ message: `Request params saving error cacheKey:${this.cacheKey}`, params: requestParams, error });
             }
         }
     }
@@ -216,28 +224,31 @@ class AsyncSource<T> {
         };
 
         try {
-            new Promise((resolve) => resolve(this.storage?.setItem(cacheKey, JSON.stringify(cacheValue))));
+            new Promise((resolve) => resolve(this.cacheStorage?.setItem(cacheKey, JSON.stringify(cacheValue))));
         } catch (error) {
-            this.onError(error as Error);
+            console.warn({ message: `Cache saving error cacheKey:${cacheKey}`, error });
         }
     }
 
     private async request(args: Array<any>, successHandler?: (response: T) => void, isImmediate?: boolean): Promise<void> {
-        this.setArgs(args);
-
-        const cacheKey = this.getCacheKey();
-
-        this.loadFromStorage();
-
-        if (cacheKey && this.responseData && !this.isRequestPending) {
-            this.isFetchedData = true;
-            successHandler?.(this.responseData);
-        }
-
         this.isRequestPending = true;
 
         const requestId = await this.createRequestId(isImmediate);
         if (!this.isLastRequest(requestId)) return;
+
+        if (this.cacheKey) {
+            this.setRequestParams(args);
+
+            const cacheKey = this.getCacheKey();
+
+            await this.loadFromStorage();
+
+            if (cacheKey && this.responseData && !this.isRequestPending) {
+                this.isFetchedData = true;
+                successHandler?.(this.responseData);
+                if (!this.isUpdateRequestCache) return;
+            }
+        }
 
         try {
             const response = await this.serviceMethod(...args);
@@ -246,6 +257,8 @@ class AsyncSource<T> {
                 this.isFetchedData = true;
                 this.responseData = response;
                 successHandler?.(response);
+
+                const cacheKey = this.getCacheKey();
 
                 if (cacheKey) {
                     this.setCachedData(response);
@@ -256,6 +269,7 @@ class AsyncSource<T> {
                 this.isRequestPending = false;
                 this.isFetchedData = true;
                 this.responseData = null;
+                this.requestParams = '';
                 this.onError(error as Error);
             }
         }
