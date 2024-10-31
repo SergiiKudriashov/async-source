@@ -211,6 +211,7 @@ class AsyncSource<T> {
         }
     }
 
+    // Core request method
     private async request(args: Array<any>, successHandler?: (response: T) => void, isImmediate?: boolean): Promise<void> {
         this.isRequestPending = true;
 
