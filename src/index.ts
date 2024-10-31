@@ -196,7 +196,7 @@ class AsyncSource<T> {
         }
     }
 
-    private setCachedData(data: T): void {
+    private async setCachedData(data: T): Promise<void> {
         if (!this.cacheKey) return;
 
         const cacheValue = {
@@ -205,7 +205,7 @@ class AsyncSource<T> {
         };
 
         try {
-            this.cacheStorage?.setItem?.(this.cacheKey, JSON.stringify(cacheValue));
+           await this.cacheStorage?.setItem?.(this.cacheKey, JSON.stringify(cacheValue));
         } catch (error) {
             console.warn({ message: `Cache saving error cacheKey:${this.cacheKey}`, error });
         }
@@ -224,7 +224,9 @@ class AsyncSource<T> {
                 this.isFetchedData = true;
                 successHandler?.(this.responseData);
 
-                if (!this.isUpdateRequestCache) return;
+                if (!this.isUpdateRequestCache) {
+                    return;
+                }
             }
         }
 
@@ -237,7 +239,7 @@ class AsyncSource<T> {
                 successHandler?.(response);
 
                 if (this.isCacheEnabled) {
-                    this.setCachedData(response);
+                    await this.setCachedData(response);
                 }
             }
         } catch (error) {

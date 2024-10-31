@@ -8,7 +8,8 @@ export default () => {
             cache: false,
             coverage: {
                 include: ['src/*.ts']
-            }
+            },
+            environment: 'jsdom', 
         }
     })
 }
