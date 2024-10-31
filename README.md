@@ -1,13 +1,22 @@
-# AsyncSource #
-With AsyncSource you can
-* Create stateful reactive data source for asynchronous requests
-* Handle errors
-* Configure throttling
-* Ignore inconsistent state
-* Control state of your requests (isLoading, isFetch, data)
+# AsyncSource
 
-In case of multiple calls - only last call will be processed.
-Connect AsyncSource to your dynamic selects with in build debounce
+`AsyncSource` is a stateful, reactive data source designed for managing asynchronous requests in modern JavaScript and TypeScript projects. It provides robust features for error handling, throttling, and caching, making it ideal for applications that require efficient data management.
+
+### Features
+**Stateful Management:** Track the state of your requests, including (`isLoading`, `isFetched`, `data`).
+
+**Error Handling:** Automatically manage errors with customizable handlers, ensuring a smooth user experience.
+
+**Debounce Control:** Integrate built-in debouncing to manage rapid requests, preventing redundant calls and ensuring only the latest call is processed.
+
+**Cache Support:** Cache responses locally with configurable storage options and expiration times, enhancing performance and reducing unnecessary network requests.
+
+**Automatic State Consistency:** In cases of multiple calls, only the last call will be processed, maintaining data integrity and consistency.
+
+### Use Cases
+
+- Connect `AsyncSource` to dynamic selects to efficiently handle user interactions and data fetching.
+- Implement throttling and debouncing in applications that require real-time data updates without overwhelming the server.
 
 ### Install ###
 ```
@@ -137,6 +146,157 @@ export default {
         errorHandler(error) {
             console.error(error);
         }
+    }
+}
+
+</script>
+```
+
+### Cache ###
+#### Global cache configuration ####
+##### To apply global settings, use setConfig: #####
+```js
+import AsyncSource from 'async-source';
+
+AsyncSource.setConfig({
+    cacheStorage: localStorage,               // or any custom sync/async storage
+    cacheTime: 12 * 60 * 60 * 1000,           // cache for 12 hours
+    cachePrefix: 'MyAppAsyncSource'            // optional prefix for cache keys
+});
+```
+
+#### Instance-Level Configuration ####
+##### Specify custom settings for each AsyncSource instance by passing an options object as the third parameter. This object can include both caching and debounce settings. #####
+
+```typescript
+new AsyncSource<T>(
+    serviceMethod: (...args: any[]) => Promise<T>,
+    errorHandler?: (error: any) => void,
+    configOrDelay?: number | ConfigOptions
+)
+```
+
+| Parameter | Required | Description |
+| --- | --- | --- |
+| `serviceMethod` | Yes | Method that returns a promise. |
+| `errorHandler` | No | Function to handle errors in the service method. |
+| `configOrDelay` | No | Debounce delay (in ms) or an object with config options. |
+
+
+#### ConfigOptions Interface ####
+##### If using a configuration object for configOrDelay, it can include: #####
+```typescript
+interface ConfigOptions {
+    debounceTime?: number;        // Delay before request execution (in milliseconds)
+    requestCacheKey?: string;     // Request cache key (required for enable cache)
+    cacheTime?: number;           // Cache expiration in milliseconds
+    cacheStorage?: CacheStorage;  // Storage (e.g., localStorage, sessionStorage, indexDB)
+    isUpdateCache?: boolean;      // Refetch cache every time when true.
+}
+```
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `debounceTime` | `number` | `300` | Delay before request execution (in milliseconds). |
+| `requestCacheKey` | `string` |  | Request cache key (required for enabling cache). |
+| `cacheTime` | `number` | `43200000` | Cache expiration time in milliseconds (default: 12 hours). |
+| `cacheStorage` | `CacheStorage` | `localStorage` | Storage interface (e.g., localStorage, sessionStorage, indexedDB). |
+| `isUpdateCache` | `boolean` | `true` | Refetch cache every time when true. |
+
+
+#### Example ####
+
+#### Sync storage ###
+```vue
+<template>
+    <ul v-loading="isLoading">
+        <li v-for="item in items" :key="item.id">
+            {{ item.name }}
+        </li>
+    </ul>
+</template>
+
+<script>
+import AsyncSource from 'async-source';
+import { computed, reactive } from 'vue';
+
+export default {
+    name: 'MyComponent',
+    setup() {
+        function errorHandler(error) {
+            console.error(error);
+        }
+
+        const source = reactive(
+            new AsyncSource(request, errorHandler, {
+                requestCacheKey: 'key',
+                cacheStorage: sessionStorage,
+                isUpdateCache: false,
+                debounceTime: 100,
+                cacheTime: 24 * 60 * 60 * 1000 // 24h
+            })
+        );
+        source.update();
+
+        const items = computed(() => source.data || []);
+        const isLoading = computed(() => source.isLoading);
+        
+        return {
+            items,
+            isLoading
+        };
+    }
+}
+
+</script>
+```
+
+#### Async storage ###
+```vue
+<template>
+    <ul v-loading="isLoading">
+        <li v-for="item in items" :key="item.id">
+            {{ item.name }}
+        </li>
+    </ul>
+</template>
+
+<script>
+import AsyncSource from 'async-source';
+import { computed, reactive } from 'vue';
+import { get, set, del } from 'idb-keyval';
+
+export default {
+    name: 'MyComponent',
+    setup() {
+        function errorHandler(error) {
+            console.error(error);
+        }
+
+        const storage = {
+            getItem: (key: string) => get(key),
+            setItem: (key: string, value: string) => set(key, value),
+            removeItem: (key: string) => del(key)
+        };
+
+        const source = reactive(
+            new AsyncSource(request, errorHandler, {
+                requestCacheKey: 'key',
+                cacheStorage: storage,
+                isUpdateCache: false,
+                debounceTime: 100,
+                cacheTime: 24 * 60 * 60 * 1000 // 24h
+            })
+        );
+        source.update();
+
+        const items = computed(() => source.data || []);
+        const isLoading = computed(() => source.isLoading);
+        
+        return {
+            items,
+            isLoading
+        };
     }
 }
 
