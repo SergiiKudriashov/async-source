@@ -167,10 +167,10 @@ class AsyncSource<T> {
         this.cacheKey = requestParamsHash ? `${baseCacheKey}-${requestParamsHash}` : baseCacheKey;
     }
 
-    private removeCachedData() {
+    private async removeCachedData() {
         try {
             if (this.cacheKey) {
-                this.cacheStorage?.removeItem?.(this.cacheKey);
+                await this.cacheStorage?.removeItem?.(this.cacheKey);
             }
         } catch (error) {
             console.warn({ message: `Cache removing error cacheKey:${this.cacheKey}`, error });
