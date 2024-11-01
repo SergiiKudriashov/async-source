@@ -37,7 +37,7 @@ class AsyncSource<T> {
     private isCacheEnabled = false;
     private cacheTime!: number;
     private cacheStorage: CacheStorage | null = null;
-    private isUpdateRequestCache = true;
+    private isUpdateCache = true;
     private cacheKey?: string;
     private static defaultCacheTime = 12 * 60 * 60 * 1000;
     private static defaultStorage: CacheStorage = localStorage;
@@ -67,7 +67,7 @@ class AsyncSource<T> {
             this.requestCacheKey = requestCacheKey;
             this.cacheTime = cacheTime;
             this.cacheStorage = cacheStorage;
-            this.isUpdateRequestCache = isUpdateCache;
+            this.isUpdateCache = isUpdateCache;
         }
     }
 
@@ -168,10 +168,10 @@ class AsyncSource<T> {
     }
 
     private async removeCachedData() {
+        if (!this.cacheKey) return;
+
         try {
-            if (this.cacheKey) {
-                await this.cacheStorage?.removeItem?.(this.cacheKey);
-            }
+            await this.cacheStorage?.removeItem?.(this.cacheKey);
         } catch (error) {
             console.warn({ message: `Cache removing error cacheKey:${this.cacheKey}`, error });
         }
@@ -225,7 +225,7 @@ class AsyncSource<T> {
                 this.isFetchedData = true;
                 successHandler?.(this.responseData);
 
-                if (!this.isUpdateRequestCache) {
+                if (!this.isUpdateCache) {
                     return;
                 }
             }
@@ -240,7 +240,7 @@ class AsyncSource<T> {
                 successHandler?.(response);
 
                 if (this.isCacheEnabled) {
-                    await this.setCachedData(response);
+                    this.setCachedData(response);
                 }
             }
         } catch (error) {
