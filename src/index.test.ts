@@ -43,6 +43,12 @@ const mockedMethodWithDelay = vi.fn(async (delayTime, response?) => {
 });
 const mockedMethodWithError = vi.fn(error => Promise.reject(error));
 
+const createMockStorage = () => ({
+    getItem: vi.fn().mockImplementation(() => Promise.resolve(null)),
+    setItem: vi.fn().mockImplementation(() => Promise.resolve()),
+    removeItem: vi.fn().mockImplementation(() => Promise.resolve()),
+});
+
 // tests
 let sut: AsyncSource<unknown>;
 describe('Async source', () => {
@@ -294,4 +300,309 @@ describe('Async source', () => {
             expect(spy).toHaveBeenCalled();
         });
     });
+    
+    describe("AsyncSource Cache Functionality", () => {
+        let mockStorage: any;
+    
+        beforeEach(() => {
+            mockStorage = createMockStorage();
+            localStorage.clear();
+        });
+    
+        afterEach(() => {
+            vi.clearAllMocks();
+        });
+    
+        it("should save data to cache after successful fetch", async () => {
+            const response = { data: "test data" };
+            const serviceMethod = vi.fn(() => Promise.resolve(response));
+        
+            const asyncSource = new AsyncSource(serviceMethod, vi.fn(), {
+                requestCacheKey: "testKey",
+                cacheStorage: mockStorage,
+                cacheTime: 1000,
+                isUpdateCache: true
+            });
+        
+            await asyncSource.update();
+            
+            expect(mockStorage.setItem).toHaveBeenCalledOnce();
+            const [key, value] = mockStorage.setItem.mock.calls[0];
+            expect(key).toContain("AsyncSource-testKey");
+        
+            const parsedValue = JSON.parse(value);
+            expect(parsedValue.data).toEqual(response); 
+            expect(parsedValue.timestamp).toBeGreaterThan(0); 
+        });
+        
+    
+        it("should retrieve data from cache if available and not expired", async () => {
+            const cachedResponse = { data: { data: "cached data" }, timestamp: Date.now() };
+            mockStorage.getItem.mockResolvedValueOnce(JSON.stringify(cachedResponse));
+    
+            sut = new AsyncSource(vi.fn(), vi.fn(), {
+                requestCacheKey: "testKey",
+                cacheStorage: mockStorage,
+                cacheTime: 1000
+            });
+    
+            await sut.update();
+    
+            expect(mockStorage.getItem).toHaveBeenCalledOnce();
+            expect(mockStorage.getItem).toHaveBeenCalledWith(expect.stringContaining("AsyncSource-testKey"));
+        });
+    
+        it("should not retrieve data from cache if expired", async () => {
+            const expiredTimestamp = Date.now() - 2000; 
+            const cachedResponse = { data: { data: "cached data" }, timestamp: expiredTimestamp };
+            mockStorage.getItem.mockResolvedValueOnce(JSON.stringify(cachedResponse));
+    
+            const response = { data: "fresh data" };
+            const serviceMethod = vi.fn(() => Promise.resolve(response));
+            sut = new AsyncSource(serviceMethod, vi.fn(), {
+                requestCacheKey: "expired",
+                cacheStorage: mockStorage,
+                cacheTime: 1000
+            });
+    
+            await sut.update();
+    
+            expect(sut.data).toEqual(response);
+            expect(mockStorage.setItem).toHaveBeenCalledOnce();
+            expect(serviceMethod).toHaveBeenCalledOnce();
+        });
+    
+        it("should clear cache when calling clear method", async () => {
+            sut = new AsyncSource(vi.fn(), vi.fn(), {
+                requestCacheKey: "clear",
+                cacheStorage: mockStorage
+            });
+    
+            await sut.update();
+            sut.clear();
+    
+            expect(mockStorage.removeItem).toHaveBeenCalledOnce();
+            expect(mockStorage.removeItem).toHaveBeenCalledWith(expect.stringContaining("AsyncSource-clear"));
+        });
+    
+        it("should use default storage if none provided", async () => {
+            const response = { data: "default storage data" };
+            const serviceMethod = vi.fn(() => Promise.resolve(response));
+            const defaultStorageSetItemSpy = vi.spyOn(Storage.prototype, "setItem");
+
+            sut = new AsyncSource(serviceMethod, vi.fn(), {
+                requestCacheKey: "defaultStorage",
+                cacheTime: 1000,
+            });
+
+            await sut.update();
+        
+            const [key1, value1] = defaultStorageSetItemSpy.mock.calls[0];
+
+            expect(defaultStorageSetItemSpy).toHaveBeenCalledOnce();
+            expect(key1).toContain("AsyncSource-defaultStorage");
+            expect(JSON.parse(value1)).toEqual(expect.objectContaining({
+                data: response,
+                timestamp: expect.any(Number)
+            }));
+        
+            defaultStorageSetItemSpy.mockRestore();
+        });
+        
+        
+
+        it("should create two cache records with diff args", async () => {
+            const response = { data: "default storage data" };
+            const serviceMethod = vi.fn(() => Promise.resolve(response));
+    
+            sut = new AsyncSource(serviceMethod, vi.fn(), {
+                requestCacheKey: "defaultKey",
+                cacheStorage: mockStorage,
+                cacheTime: 1000,
+            });
+    
+            await sut.update(1);
+            await sut.update(2);
+
+
+            const [key1, value1] = mockStorage.setItem.mock.calls[0];
+            const [key2, value2] = mockStorage.setItem.mock.calls[1];
+
+            expect(key1).toContain("AsyncSource-defaultKey-[1]");
+            expect(JSON.parse(value1)).toEqual(expect.objectContaining({
+                data: response,
+                timestamp: expect.any(Number)
+            }));
+
+            expect(key2).toContain("AsyncSource-defaultKey-[2]");
+            expect(JSON.parse(value2)).toEqual(expect.objectContaining({
+                data: response,
+                timestamp: expect.any(Number)
+            }));
+        });
+
+
+        it("should update cache when isUpdateCache is true", async () => {
+            const initialResponse = { data: "initial data" };
+            const serviceMethod = vi.fn(() => Promise.resolve(initialResponse));
+            const defaultStorageSetItemSpy = vi.spyOn(Storage.prototype, "setItem");
+            const defaultStorageGetItemSpy = vi.spyOn(Storage.prototype, "getItem");
+
+            sut = new AsyncSource(serviceMethod, vi.fn(), {
+                requestCacheKey: "updateCacheKey",
+                cacheTime: 1000,
+                isUpdateCache: true, 
+            });
+        
+            await sut.update(); 
+            await sut.update(); 
+        
+            expect(serviceMethod).toHaveBeenCalledTimes(2); 
+            expect(defaultStorageGetItemSpy).toHaveBeenCalledTimes(2); 
+            expect(defaultStorageSetItemSpy).toHaveBeenCalledTimes(2); 
+        });
+        
+        it("should not update cache when isUpdateCache is false", async () => {
+            const initialResponse = { data: "initial data" };
+            const serviceMethod = vi.fn(() => Promise.resolve(initialResponse));
+
+            const defaultStorageSetItemSpy = vi.spyOn(Storage.prototype, "setItem");
+            const defaultStorageGetItemSpy = vi.spyOn(Storage.prototype, "getItem")
+
+            sut = new AsyncSource(serviceMethod, vi.fn(), {
+                requestCacheKey: "notUpdateCacheKey",
+                isUpdateCache: false, 
+
+            });
+        
+            await sut.update(); 
+            await sut.update(); 
+            
+            expect(serviceMethod).toHaveBeenCalledOnce(); 
+            expect(defaultStorageSetItemSpy).toHaveBeenCalledOnce(); 
+            expect(defaultStorageGetItemSpy).toHaveBeenCalledTimes(2); 
+        });
+        
+        
+    });
+    describe("AsyncSource Cache Exception Handling", () => {
+        let mockStorage: any;
+        let sut: AsyncSource<any>;
+    
+        beforeEach(() => {
+            mockStorage = createMockStorage();
+            localStorage.clear();
+        });
+    
+        afterEach(() => {
+            vi.clearAllMocks();
+        });
+    
+        it("should handle JSON.stringify error in updateCacheKey", async () => {
+            const circularReference: any = {};
+            circularReference.self = circularReference;
+    
+            const initialResponse = { data: "initial data" };
+            const serviceMethod = vi.fn(() => Promise.resolve(initialResponse));
+    
+            sut = new AsyncSource(serviceMethod, vi.fn(), {
+                requestCacheKey: "testCircular",
+                cacheStorage: mockStorage
+            });
+    
+            const consoleWarnSpy = vi.spyOn(console, "warn");
+    
+            await sut.update(circularReference)
+            expect(serviceMethod).toHaveBeenCalledOnce(); 
+            expect(consoleWarnSpy).toHaveBeenCalledWith(expect.objectContaining({
+                message: "Request params saving error cacheKey:AsyncSource-testCircular",
+                error: expect.any(Error)
+            }));
+    
+            consoleWarnSpy.mockRestore();
+        });
+    
+        it("should handle removeItem error in removeCachedData", async () => {
+            const initialResponse = { data: "initial data" };
+            const serviceMethod = vi.fn(() => Promise.resolve(initialResponse));
+    
+            mockStorage.removeItem.mockRejectedValueOnce(new Error("removeItem error"));
+            
+            sut = new AsyncSource(serviceMethod, vi.fn(), {
+                requestCacheKey: "testRemoveError",
+                cacheStorage: mockStorage
+            });
+            
+            const consoleWarnSpy = vi.spyOn(console, "warn");
+    
+            await sut.update();
+            sut.clear()
+                    
+            setTimeout(() => {
+                expect(serviceMethod).toHaveBeenCalledOnce(); 
+                expect(consoleWarnSpy).toHaveBeenCalledWith(expect.objectContaining({
+                    message: "Cache removing error cacheKey:AsyncSource-testRemoveError",
+                    error: expect.any(Error)
+                }));
+        
+                consoleWarnSpy.mockRestore();
+            }, 1000)
+        });
+    
+        it("should handle getItem error in getCachedData", async () => {
+            const initialResponse = { data: "initial data" };
+            const serviceMethod = vi.fn(() => Promise.resolve(initialResponse));
+    
+            mockStorage.getItem.mockRejectedValueOnce(new Error("getItem error"));
+            
+            sut = new AsyncSource(serviceMethod, vi.fn(), {
+                requestCacheKey: "testGetError",
+                cacheStorage: mockStorage,
+                cacheTime: 1000
+            });
+    
+            sut["cacheKey"] = "AsyncSource-testGetError";
+            
+            const consoleWarnSpy = vi.spyOn(console, "warn");
+    
+            await sut.update();
+            await sut.update();
+    
+            expect(serviceMethod).toHaveBeenCalledTimes(2); 
+            expect(consoleWarnSpy).toHaveBeenCalledWith(expect.objectContaining({
+                message: "Cache getting error cacheKey:AsyncSource-testGetError",
+                error: expect.any(Error)
+            }));
+    
+            consoleWarnSpy.mockRestore();
+        });
+    
+        it("should handle setItem error in setCachedData", async () => {
+            const initialResponse = { data: "initial data" };
+            const serviceMethod = vi.fn(() => Promise.resolve(initialResponse));
+    
+            mockStorage.setItem.mockRejectedValueOnce(new Error("setItem error"));
+            
+            sut = new AsyncSource(serviceMethod, vi.fn(), {
+                requestCacheKey: "testSetError",
+                cacheStorage: mockStorage,
+                cacheTime: 1000
+            });
+    
+            const consoleWarnSpy = vi.spyOn(console, "warn");
+    
+            await sut.update();
+    
+            setTimeout(() => {
+                expect(serviceMethod).toHaveBeenCalledOnce(); 
+                expect(consoleWarnSpy).toHaveBeenCalledWith(expect.objectContaining({
+                    message: 'Cache saving error cacheKey:AsyncSource-testSetError',
+                    error: expect.any(Error)
+                }));
+        
+                consoleWarnSpy.mockRestore();
+            }, 1000)
+        });
+    });
+     
 });
