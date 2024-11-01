@@ -43,9 +43,9 @@ class AsyncSource<T> {
     private static defaultStorage: CacheStorage = localStorage;
     private static cachePrefix = 'AsyncSource';
 
-    constructor(serviceMethod: ServiceMethod<T>, errorHandler?: ErrorHandler, debounceTime?: number);
+    constructor(serviceMethod: ServiceMethod<T>, errorHandler?: ErrorHandler, debounceTime?: DebounceTimeOrConfig);
 
-    constructor(serviceMethod: ServiceMethod<T>, errorHandler?: ErrorHandler, config?: AsyncSourceInstanceConfig);
+    constructor(serviceMethod: ServiceMethod<T>, errorHandler?: ErrorHandler, config?: DebounceTimeOrConfig);
 
     constructor(serviceMethod: ServiceMethod<T>, errorHandler: ErrorHandler = () => {}, debounceTimeOrConfig: DebounceTimeOrConfig = 100) {
         this.serviceMethod = serviceMethod;
@@ -205,7 +205,7 @@ class AsyncSource<T> {
         };
 
         try {
-           await this.cacheStorage?.setItem?.(this.cacheKey, JSON.stringify(cacheValue));
+            await this.cacheStorage?.setItem?.(this.cacheKey, JSON.stringify(cacheValue));
         } catch (error) {
             console.warn({ message: `Cache saving error cacheKey:${this.cacheKey}`, error });
         }
