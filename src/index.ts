@@ -25,6 +25,8 @@ export type ResponseData<T> = T;
 export type ServiceMethod<T = any> = (...args: Array<any>) => Promise<T>;
 export type ErrorHandler = (error: Error) => void;
 
+const DEFAULT_ENTRY_KEY = 'default'
+
 class AsyncSource<T> {
     readonly onError: ErrorHandler;
     readonly serviceMethod: ServiceMethod<T>;
@@ -84,6 +86,17 @@ class AsyncSource<T> {
         }
     }
 
+    static async invalidateCacheKey(cacheKey: string, storage = AsyncSource.defaultStorage) {
+        const key = `${this.cachePrefix}-${cacheKey}`
+
+        try {
+            if(cacheKey) await storage?.removeItem?.(key);
+        } catch (error) {
+            console.warn({ message: `Cache invalidate error cacheKey:${key}`, error });
+            return null;
+        }
+    }
+
     // Response data getter
     public get data(): ResponseData<T> {
         return this.responseData;
@@ -139,9 +152,9 @@ class AsyncSource<T> {
     }
 
     private async syncCache(args: Array<any>) {
-        this.updateCacheKey(args);
+        this.updateCacheKey();
 
-        const cachedData = await this.getCachedData();
+        const cachedData = await this.getCachedData(args);
         if (cachedData) {
             this.responseData = cachedData;
             this.isFetchedData = true;
@@ -149,22 +162,9 @@ class AsyncSource<T> {
         }
     }
 
-    private updateCacheKey(requestParams: Array<any>) {
+    private updateCacheKey() {
         const baseCacheKey = `${AsyncSource.cachePrefix}-${this.requestCacheKey}`;
-
-        const isRequestParamsExist = Boolean(requestParams.length);
-
-        let requestParamsHash;
-
-        if (isRequestParamsExist) {
-            try {
-                requestParamsHash = JSON.stringify(requestParams);
-            } catch (error) {
-                console.warn({ message: `Request params saving error cacheKey:${baseCacheKey}`, params: requestParams, error });
-            }
-        }
-
-        this.cacheKey = requestParamsHash ? `${baseCacheKey}-${requestParamsHash}` : baseCacheKey;
+        this.cacheKey = baseCacheKey
     }
 
     private async removeCachedData() {
@@ -177,35 +177,49 @@ class AsyncSource<T> {
         }
     }
 
-    private async getCachedData(): Promise<PromiseResult<T> | null> {
+    private async getCachedData(args: Array<any>): Promise<PromiseResult<T> | null> {
         if (!this.cacheKey) return null;
-
+    
         try {
             const storedData = await this.cacheStorage?.getItem?.(this.cacheKey);
-
+    
             if (storedData) {
-                const { data, timestamp } = JSON.parse(storedData);
-                const isExpired = Date.now() - timestamp > this.cacheTime;
-                return isExpired ? null : (data as PromiseResult<T>);
+                const cacheMap = JSON.parse(storedData);
+                const isRequestParamsExist = Boolean(args.length);
+                const argKey = isRequestParamsExist ? JSON.stringify(args) : DEFAULT_ENTRY_KEY;
+                const cacheEntry = cacheMap[argKey];
+    
+                if (cacheEntry) {
+                    const { data, timestamp } = cacheEntry;
+                    const isExpired = Date.now() - timestamp > this.cacheTime;
+                    return isExpired ? null : (data as PromiseResult<T>);
+                }
             }
-
+    
             return null;
         } catch (error) {
             console.warn({ message: `Cache getting error cacheKey:${this.cacheKey}`, error });
             return null;
         }
     }
-
-    private async setCachedData(data: T): Promise<void> {
+    
+    private async setCachedData(data: T, args: Array<any>): Promise<void> {
         if (!this.cacheKey) return;
-
-        const cacheValue = {
-            data,
-            timestamp: Date.now()
-        };
-
+    
         try {
-            await this.cacheStorage?.setItem?.(this.cacheKey, JSON.stringify(cacheValue));
+            const isRequestParamsExist = Boolean(args.length);
+            const argKey = isRequestParamsExist ? JSON.stringify(args) : DEFAULT_ENTRY_KEY;
+            const newEntry = {
+                data,
+                timestamp: Date.now()
+            };
+
+            const existingData = await this.cacheStorage?.getItem?.(this.cacheKey);
+            const cacheMap = existingData ? JSON.parse(existingData) : {};
+            cacheMap[argKey] = newEntry;
+
+            await this.cacheStorage?.setItem?.(this.cacheKey, JSON.stringify(cacheMap));
+            console.log('success')
         } catch (error) {
             console.warn({ message: `Cache saving error cacheKey:${this.cacheKey}`, error });
         }
@@ -240,7 +254,7 @@ class AsyncSource<T> {
                 successHandler?.(response);
 
                 if (this.isCacheEnabled) {
-                    this.setCachedData(response);
+                    this.setCachedData(response, args);
                 }
             }
         } catch (error) {

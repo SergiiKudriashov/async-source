@@ -317,28 +317,30 @@ describe('Async source', () => {
             const response = { data: "test data" };
             const serviceMethod = vi.fn(() => Promise.resolve(response));
         
-            const asyncSource = new AsyncSource(serviceMethod, vi.fn(), {
+            sut = new AsyncSource(serviceMethod, vi.fn(), {
                 requestCacheKey: "testKey",
                 cacheStorage: mockStorage,
                 cacheTime: 1000,
                 isUpdateCache: true
             });
         
-            await asyncSource.update();
-            
+            await sut.update();
+            await delay(100)
+
+            expect(mockStorage.getItem).toHaveBeenCalledTimes(2);
             expect(mockStorage.setItem).toHaveBeenCalledOnce();
             const [key, value] = mockStorage.setItem.mock.calls[0];
             expect(key).toContain("AsyncSource-testKey");
         
             const parsedValue = JSON.parse(value);
-            expect(parsedValue.data).toEqual(response); 
-            expect(parsedValue.timestamp).toBeGreaterThan(0); 
+            expect(parsedValue.default.data).toEqual(response); 
+            expect(parsedValue.default.timestamp).toBeGreaterThan(0); 
         });
         
     
         it("should retrieve data from cache if available and not expired", async () => {
-            const cachedResponse = { data: { data: "cached data" }, timestamp: Date.now() };
-            mockStorage.getItem.mockResolvedValueOnce(JSON.stringify(cachedResponse));
+            const cachedResponse = { default: { data: { data: "cached data" }, timestamp: Date.now() }};
+            mockStorage.getItem.mockResolvedValue(JSON.stringify(cachedResponse));
     
             sut = new AsyncSource(vi.fn(), vi.fn(), {
                 requestCacheKey: "testKey",
@@ -348,14 +350,14 @@ describe('Async source', () => {
     
             await sut.update();
     
-            expect(mockStorage.getItem).toHaveBeenCalledOnce();
+            expect(mockStorage.getItem).toHaveBeenCalledTimes(2);
             expect(mockStorage.getItem).toHaveBeenCalledWith(expect.stringContaining("AsyncSource-testKey"));
         });
     
         it("should not retrieve data from cache if expired", async () => {
             const expiredTimestamp = Date.now() - 2000; 
-            const cachedResponse = { data: { data: "cached data" }, timestamp: expiredTimestamp };
-            mockStorage.getItem.mockResolvedValueOnce(JSON.stringify(cachedResponse));
+            const cachedResponse = { default: { data: { data: "cached data" }, timestamp: expiredTimestamp }};
+            mockStorage.getItem.mockResolvedValue(JSON.stringify(cachedResponse));
     
             const response = { data: "fresh data" };
             const serviceMethod = vi.fn(() => Promise.resolve(response));
@@ -366,7 +368,8 @@ describe('Async source', () => {
             });
     
             await sut.update();
-    
+            await delay(100)
+
             expect(sut.data).toEqual(response);
             expect(mockStorage.setItem).toHaveBeenCalledOnce();
             expect(serviceMethod).toHaveBeenCalledOnce();
@@ -402,8 +405,10 @@ describe('Async source', () => {
             expect(defaultStorageSetItemSpy).toHaveBeenCalledOnce();
             expect(key1).toContain("AsyncSource-defaultStorage");
             expect(JSON.parse(value1)).toEqual(expect.objectContaining({
-                data: response,
-                timestamp: expect.any(Number)
+                default: {
+                    data: response,
+                    timestamp: expect.any(Number)
+                }
             }));
         
             defaultStorageSetItemSpy.mockRestore();
@@ -411,34 +416,38 @@ describe('Async source', () => {
         
         
 
-        it("should create two cache records with diff args", async () => {
+        it("should store multiple cache entries under one key for different request args", async () => {
             const response = { data: "default storage data" };
             const serviceMethod = vi.fn(() => Promise.resolve(response));
+            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
     
             sut = new AsyncSource(serviceMethod, vi.fn(), {
                 requestCacheKey: "defaultKey",
-                cacheStorage: mockStorage,
                 cacheTime: 1000,
             });
     
             await sut.update(1);
             await sut.update(2);
-
-
-            const [key1, value1] = mockStorage.setItem.mock.calls[0];
-            const [key2, value2] = mockStorage.setItem.mock.calls[1];
-
-            expect(key1).toContain("AsyncSource-defaultKey-[1]");
-            expect(JSON.parse(value1)).toEqual(expect.objectContaining({
-                data: response,
-                timestamp: expect.any(Number)
+    
+            expect(setItemSpy).toHaveBeenCalledTimes(2);
+    
+            const [cacheKey, storedValue] = setItemSpy.mock.calls[1];
+            expect(cacheKey).toContain("AsyncSource-defaultKey");
+    
+            const parsed = JSON.parse(storedValue);
+    
+            expect(parsed).toEqual(expect.objectContaining({
+                "[1]": {
+                    data: response,
+                    timestamp: expect.any(Number)
+                },
+                "[2]": {
+                    data: response,
+                    timestamp: expect.any(Number)
+                }
             }));
-
-            expect(key2).toContain("AsyncSource-defaultKey-[2]");
-            expect(JSON.parse(value2)).toEqual(expect.objectContaining({
-                data: response,
-                timestamp: expect.any(Number)
-            }));
+    
+            setItemSpy.mockRestore();
         });
 
 
@@ -458,7 +467,7 @@ describe('Async source', () => {
             await sut.update(); 
         
             expect(serviceMethod).toHaveBeenCalledTimes(2); 
-            expect(defaultStorageGetItemSpy).toHaveBeenCalledTimes(2); 
+            expect(defaultStorageGetItemSpy).toHaveBeenCalledTimes(4); 
             expect(defaultStorageSetItemSpy).toHaveBeenCalledTimes(2); 
         });
         
@@ -480,10 +489,30 @@ describe('Async source', () => {
             
             expect(serviceMethod).toHaveBeenCalledOnce(); 
             expect(defaultStorageSetItemSpy).toHaveBeenCalledOnce(); 
-            expect(defaultStorageGetItemSpy).toHaveBeenCalledTimes(2); 
+            expect(defaultStorageGetItemSpy).toHaveBeenCalledTimes(3); 
         });
+
+        it("should successfully invalidate the cache key", async () => {
+            const cacheKey = "testKey";
+            const expectedKey = `AsyncSource-${cacheKey}`;
+            const defaultStorageRemoveItemSpy = vi.spyOn(Storage.prototype, "removeItem");
         
+            // Call the function
+            await AsyncSource.invalidateCacheKey(cacheKey);
         
+            // Assert that removeItem was called with the correct key
+            expect(defaultStorageRemoveItemSpy).toHaveBeenCalledWith(expectedKey);
+        });
+
+        it("should successfully invalidate the cache key for not default storage", async () => {
+            const cacheKey = "testKey";
+            const expectedKey = `AsyncSource-${cacheKey}`;        
+            // Call the function
+            await AsyncSource.invalidateCacheKey(cacheKey, mockStorage);
+        
+            // Assert that removeItem was called with the correct key
+            expect(mockStorage.removeItem).toHaveBeenCalledWith(expectedKey);
+        });
     });
     describe("AsyncSource Cache Exception Handling", () => {
         let mockStorage: any;
@@ -496,30 +525,6 @@ describe('Async source', () => {
     
         afterEach(() => {
             vi.clearAllMocks();
-        });
-    
-        it("should handle JSON.stringify error in updateCacheKey", async () => {
-            const circularReference: any = {};
-            circularReference.self = circularReference;
-    
-            const initialResponse = { data: "initial data" };
-            const serviceMethod = vi.fn(() => Promise.resolve(initialResponse));
-    
-            sut = new AsyncSource(serviceMethod, vi.fn(), {
-                requestCacheKey: "testCircular",
-                cacheStorage: mockStorage
-            });
-    
-            const consoleWarnSpy = vi.spyOn(console, "warn");
-    
-            await sut.update(circularReference)
-            expect(serviceMethod).toHaveBeenCalledOnce(); 
-            expect(consoleWarnSpy).toHaveBeenCalledWith(expect.objectContaining({
-                message: "Request params saving error cacheKey:AsyncSource-testCircular",
-                error: expect.any(Error)
-            }));
-    
-            consoleWarnSpy.mockRestore();
         });
     
         it("should handle removeItem error in removeCachedData", async () => {
@@ -603,6 +608,37 @@ describe('Async source', () => {
                 consoleWarnSpy.mockRestore();
             }, 1000)
         });
+
+        it("should handle errors during cache invalidation", async () => {
+            const cacheKey = "testKey";
+            mockStorage.removeItem.mockRejectedValueOnce(new Error("Storage error"));
+
+            // Spy on console.warn to ensure errors are logged
+            const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        
+            // Call the function
+            await AsyncSource.invalidateCacheKey(cacheKey, mockStorage);
+        
+            // Assert that removeItem was called
+            expect(mockStorage.removeItem).toHaveBeenCalledWith(`AsyncSource-${cacheKey}`);
+        
+            // Assert that console.warn was called to log the error
+            expect(consoleWarnSpy).toHaveBeenCalledWith({
+                message: `Cache invalidate error cacheKey:AsyncSource-${cacheKey}`,
+                error: expect.any(Error),
+            });
+        
+            // Clean up spy
+            consoleWarnSpy.mockRestore();
+        });
+
+        it("should do nothing when no cache key is provided", async () => {        
+            // Call the function with an empty cache key
+            await AsyncSource.invalidateCacheKey("", mockStorage);
+        
+            // Assert that removeItem was not called
+            expect(mockStorage.removeItem).not.toHaveBeenCalled();
+        });
+        
     });
-     
 });
