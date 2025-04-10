@@ -12,7 +12,7 @@ interface AsyncSourceConfig {
 
 interface AsyncSourceInstanceConfig {
     debounceTime?: number;
-    requestCacheKey?: string;
+    requestCacheKey?: string | (() => string);
     cacheTime?: number;
     cacheStorage?: CacheStorage;
     isUpdateCache?: boolean;
@@ -35,7 +35,7 @@ class AsyncSource<T> {
     private isRequestPending = false;
     private isFetchedData = false;
     private lastRequestId = 0;
-    private requestCacheKey?: string;
+    private requestCacheKey?: string | (() => string);
     private isCacheEnabled = false;
     private cacheTime!: number;
     private cacheStorage: CacheStorage | null = null;
@@ -163,8 +163,17 @@ class AsyncSource<T> {
     }
 
     private updateCacheKey() {
-        const baseCacheKey = `${AsyncSource.cachePrefix}-${this.requestCacheKey}`;
-        this.cacheKey = baseCacheKey
+        let dynamicKey = '';
+        if (typeof this.requestCacheKey === 'function') {
+            try {
+                dynamicKey = this.requestCacheKey();
+            } catch (error) {
+                console.warn({ message: 'Error generating dynamic cacheKey', error });
+            }
+        } else if (typeof this.requestCacheKey === 'string') {
+            dynamicKey = this.requestCacheKey;
+        }
+        this.cacheKey = `${AsyncSource.cachePrefix}-${dynamicKey}`
     }
 
     private async removeCachedData() {

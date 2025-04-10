@@ -336,6 +336,30 @@ describe('Async source', () => {
             expect(parsedValue.default.data).toEqual(response); 
             expect(parsedValue.default.timestamp).toBeGreaterThan(0); 
         });
+
+        it("dynamic requestCacheKey", async () => {
+            const response = { data: "test data" };
+            const serviceMethod = vi.fn(() => Promise.resolve(response));
+        
+            sut = new AsyncSource(serviceMethod, vi.fn(), {
+                requestCacheKey: () => "testKey",
+                cacheStorage: mockStorage,
+                cacheTime: 1000,
+                isUpdateCache: true
+            });
+        
+            await sut.update();
+            await delay(100)
+
+            expect(mockStorage.getItem).toHaveBeenCalledTimes(2);
+            expect(mockStorage.setItem).toHaveBeenCalledOnce();
+            const [key, value] = mockStorage.setItem.mock.calls[0];
+            expect(key).toContain("AsyncSource-testKey");
+        
+            const parsedValue = JSON.parse(value);
+            expect(parsedValue.default.data).toEqual(response); 
+            expect(parsedValue.default.timestamp).toBeGreaterThan(0); 
+        });
         
     
         it("should retrieve data from cache if available and not expired", async () => {
