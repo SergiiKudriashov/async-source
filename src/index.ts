@@ -90,10 +90,9 @@ class AsyncSource<T> {
         const key = `${this.cachePrefix}-${cacheKey}`
 
         try {
-            if(cacheKey) await storage?.removeItem?.(key);
+            if (cacheKey) await storage?.removeItem?.(key);
         } catch (error) {
             console.warn({ message: `Cache invalidate error cacheKey:${key}`, error });
-            return null;
         }
     }
 
