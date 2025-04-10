@@ -537,6 +537,25 @@ describe('Async source', () => {
             // Assert that removeItem was called with the correct key
             expect(mockStorage.removeItem).toHaveBeenCalledWith(expectedKey);
         });
+
+        it('should set cacheKey using static string requestCacheKey', () => {
+            const source = new AsyncSource(() => Promise.resolve('data'), () => {}, {
+                requestCacheKey: 'my-static-key'
+            });
+
+            // Force update
+            (source as any).updateCacheKey();
+            expect((source as any).cacheKey).toBe('AsyncSource-my-static-key');
+        });
+
+        it('should set cacheKey using dynamic function requestCacheKey', () => {
+            const source = new AsyncSource(() => Promise.resolve('data'), () => {}, {
+                requestCacheKey: () => 'dynamic-key'
+            });
+
+            (source as any).updateCacheKey();
+            expect((source as any).cacheKey).toBe('AsyncSource-dynamic-key');
+        });
     });
     describe("AsyncSource Cache Exception Handling", () => {
         let mockStorage: any;
@@ -664,5 +683,25 @@ describe('Async source', () => {
             expect(mockStorage.removeItem).not.toHaveBeenCalled();
         });
         
+        it('should log a warning and set empty cacheKey if dynamic function throws', () => {
+            const source = new AsyncSource(() => Promise.resolve('data'), () => {}, {
+                requestCacheKey: () => {
+                    throw new Error('Fail');
+                }
+            });
+    
+            (source as any).updateCacheKey();
+            expect(console.warn).toHaveBeenCalledWith(expect.objectContaining({
+                message: 'Error generating dynamic cacheKey',
+                error: expect.any(Error)
+            }));
+            expect((source as any).cacheKey).toBe('AsyncSource-');
+        });
+    
+        it('should set empty cacheKey if requestCacheKey is undefined', () => {
+            const source = new AsyncSource(() => Promise.resolve('data'), () => {}, {});
+            (source as any).updateCacheKey();
+            expect((source as any).cacheKey).toBe('AsyncSource-');
+        });
     });
 });

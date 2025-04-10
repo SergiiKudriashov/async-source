@@ -228,7 +228,6 @@ class AsyncSource<T> {
             cacheMap[argKey] = newEntry;
 
             await this.cacheStorage?.setItem?.(this.cacheKey, JSON.stringify(cacheMap));
-            console.log('success')
         } catch (error) {
             console.warn({ message: `Cache saving error cacheKey:${this.cacheKey}`, error });
         }
