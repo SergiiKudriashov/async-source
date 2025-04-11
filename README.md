@@ -188,7 +188,7 @@ new AsyncSource<T>(
 ```typescript
 interface ConfigOptions {
     debounceTime?: number;        // Delay before request execution (in milliseconds)
-    requestCacheKey?: string;     // Request cache key (required for enable cache)
+    requestCacheKey?: string | (() => string);     // Request cache key (required for enable cache)
     cacheTime?: number;           // Cache expiration in milliseconds
     cacheStorage?: CacheStorage;  // Storage (e.g., localStorage, sessionStorage, indexDB)
     isUpdateCache?: boolean;      // Refetch cache every time when true.
@@ -198,7 +198,7 @@ interface ConfigOptions {
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
 | `debounceTime` | `number` | `300` | Delay before request execution (in milliseconds). |
-| `requestCacheKey` | `string` |  | Request cache key (required for enabling cache). |
+| `requestCacheKey` | `string \| (() => string)` |  | Request cache key (required for enabling cache). |
 | `cacheTime` | `number` | `43200000` | Cache expiration time in milliseconds (default: 12 hours). |
 | `cacheStorage` | `CacheStorage` | `localStorage` | Storage interface (e.g., localStorage, sessionStorage, indexedDB). |
 | `isUpdateCache` | `boolean` | `true` | Refetch cache every time when true. |
