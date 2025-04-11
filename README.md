@@ -188,7 +188,7 @@ new AsyncSource<T>(
 ```typescript
 interface ConfigOptions {
     debounceTime?: number;        // Delay before request execution (in milliseconds)
-    requestCacheKey?: string;     // Request cache key (required for enable cache)
+    requestCacheKey?: string | (() => string);     // Request cache key (required for enable cache)
     cacheTime?: number;           // Cache expiration in milliseconds
     cacheStorage?: CacheStorage;  // Storage (e.g., localStorage, sessionStorage, indexDB)
     isUpdateCache?: boolean;      // Refetch cache every time when true.
@@ -198,10 +198,35 @@ interface ConfigOptions {
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
 | `debounceTime` | `number` | `300` | Delay before request execution (in milliseconds). |
-| `requestCacheKey` | `string` |  | Request cache key (required for enabling cache). |
+| `requestCacheKey` | `string \| (() => string)` |  | Request cache key (required for enabling cache). |
 | `cacheTime` | `number` | `43200000` | Cache expiration time in milliseconds (default: 12 hours). |
 | `cacheStorage` | `CacheStorage` | `localStorage` | Storage interface (e.g., localStorage, sessionStorage, indexedDB). |
 | `isUpdateCache` | `boolean` | `true` | Refetch cache every time when true. |
+
+### AsyncSource.invalidateCacheKey
+
+Invalidates (removes) the cache entry associated with the provided cache key.
+
+This method removes the cached data from the storage based on the provided `cacheKey` and the `cachePrefix`. The key used to identify the cached data is a combination of `cachePrefix` and the provided `cacheKey`. If the cache item exists in the storage, it will be removed. If an error occurs during the removal, it will be caught and logged, and the method will return `null`.
+
+#### Parameters
+
+- **`cacheKey`** (`string`): The key used to identify the cached data to be invalidated. This value is combined with the `cachePrefix` to form the full cache key.
+- **`storage`** (`CacheStorage`, optional): The storage where the cache is stored. If not provided, the default storage (`AsyncSource.defaultStorage`) will be used.
+
+#### Returns
+
+- **`Promise<void | null>`**: A promise that resolves to `void` if the cache entry was successfully invalidated, or `null` if an error occurred during the removal.
+
+#### Example
+
+```typescript
+// Example usage:
+await AsyncSource.invalidateCacheKey("myCacheKey");
+
+// You can also provide a custom storage:
+await AsyncSource.invalidateCacheKey("myCacheKey", customStorage);
+```
 
 
 #### Example ####
