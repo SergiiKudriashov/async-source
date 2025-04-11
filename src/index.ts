@@ -25,7 +25,7 @@ export type ResponseData<T> = T;
 export type ServiceMethod<T = any> = (...args: Array<any>) => Promise<T>;
 export type ErrorHandler = (error: Error) => void;
 
-const DEFAULT_ENTRY_KEY = 'default'
+const DEFAULT_ENTRY_KEY = 'default';
 
 class AsyncSource<T> {
     readonly onError: ErrorHandler;
@@ -87,7 +87,7 @@ class AsyncSource<T> {
     }
 
     static async invalidateCacheKey(cacheKey: string, storage = AsyncSource.defaultStorage) {
-        const key = `${this.cachePrefix}-${cacheKey}`
+        const key = `${AsyncSource.cachePrefix}-${cacheKey}`
 
         try {
             if (cacheKey) await storage?.removeItem?.(key);
