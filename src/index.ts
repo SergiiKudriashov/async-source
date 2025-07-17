@@ -244,7 +244,7 @@ class AsyncSource<T> {
 
             if (this.responseData && !this.isRequestPending) {
                 this.isFetchedData = true;
-                successHandler?.(this.responseData);
+                await successHandler?.(this.responseData);
 
                 if (!this.isUpdateCache) {
                     return;
@@ -258,7 +258,7 @@ class AsyncSource<T> {
                 this.isRequestPending = false;
                 this.isFetchedData = true;
                 this.responseData = response;
-                successHandler?.(response);
+                await successHandler?.(response);
 
                 if (this.isCacheEnabled) {
                     this.setCachedData(response, args);
