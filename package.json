@@ -1,6 +1,6 @@
 {
   "name": "async-source",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "description": "async requests wrapper",
   "main": "dist/index.min.js",
   "types": "dist/index.d.ts",

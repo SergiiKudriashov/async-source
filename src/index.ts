@@ -21,15 +21,16 @@ interface AsyncSourceInstanceConfig {
 type CacheStorage = AsyncStorage | Storage | undefined | null;
 type DebounceTimeOrConfig = number | AsyncSourceInstanceConfig;
 type PromiseResult<T> = T extends PromiseLike<infer U> ? U : T;
-export type ResponseData<T> = T;
-export type ServiceMethod<T = any> = (...args: Array<any>) => Promise<T>;
-export type ErrorHandler = (error: Error) => void;
+export type ResponseData<T> = T | null;
+export type ServiceMethod<T = any, TArgs extends Array<any> = Array<any>> = (...args: TArgs) => Promise<T>;
+export type SuccessHandler<T> = (response: T) => unknown | Promise<unknown>;
+export type ErrorHandler = (error: any) => void;
 
 const DEFAULT_ENTRY_KEY = 'default';
 
-class AsyncSource<T> {
+class AsyncSource<T, TArgs extends Array<any> = Array<any>> {
     readonly onError: ErrorHandler;
-    readonly serviceMethod: ServiceMethod<T>;
+    readonly serviceMethod: ServiceMethod<T, TArgs>;
     readonly debounceTime: number;
     private responseData: PromiseResult<ReturnType<ServiceMethod>> = null;
     private isRequestPending = false;
@@ -46,10 +47,10 @@ class AsyncSource<T> {
     private static cachePrefix = 'AsyncSource';
 
     constructor(serviceMethod: ServiceMethod<T>, errorHandler?: ErrorHandler, config?: AsyncSourceInstanceConfig);
-    
+
     constructor(serviceMethod: ServiceMethod<T>, errorHandler?: ErrorHandler, debounceTime?: number);
 
-    constructor(serviceMethod: ServiceMethod<T>, errorHandler: ErrorHandler = () => {}, debounceTimeOrConfig: DebounceTimeOrConfig = 100) {
+    constructor(serviceMethod: ServiceMethod<T>, errorHandler: ErrorHandler = () => {}, debounceTimeOrConfig: DebounceTimeOrConfig = 100) {k
         this.serviceMethod = serviceMethod;
         this.onError = errorHandler;
 
@@ -112,17 +113,17 @@ class AsyncSource<T> {
     }
 
     // Loads new dataSouse data
-    public async update(...args: Array<any>): Promise<void> {
+    public async update(...args: TArgs): Promise<void> {
         await this.request(args);
     }
 
     // Loads new dataSouse data if data is empty
-    public async updateIfEmpty(...args: Array<any>): Promise<void> {
+    public async updateIfEmpty(...args: TArgs): Promise<void> {
         if (this.data) return;
         await this.request(args);
     }
 
-    public async updateOnce(...args: Array<any>): Promise<void> {
+    public async updateOnce(...args: TArgs): Promise<void> {
         if (this.isLoading) {
             await new Promise((resolve) => setTimeout(resolve, 100));
             await this.updateOnce(...args);
@@ -132,12 +133,12 @@ class AsyncSource<T> {
     }
 
     // Loads new dataSouse data ignoring debounce time
-    public async updateImmediate(...args: Array<any>): Promise<void> {
+    public async updateImmediate(...args: TArgs): Promise<void> {
         await this.request(args, undefined, true);
     }
 
     // Loads new dataSouse data and calls successHandler with response
-    async push(successHandler: (response: T) => unknown, ...args: Array<any>): Promise<void> {
+    async push(successHandler: SuccessHandler<T>, ...args: TArgs): Promise<void> {
         await this.request(args, successHandler);
     }
 
@@ -187,33 +188,33 @@ class AsyncSource<T> {
 
     private async getCachedData(args: Array<any>): Promise<PromiseResult<T> | null> {
         if (!this.cacheKey) return null;
-    
+
         try {
             const storedData = await this.cacheStorage?.getItem?.(this.cacheKey);
-    
+
             if (storedData) {
                 const cacheMap = JSON.parse(storedData);
                 const isRequestParamsExist = Boolean(args.length);
                 const argKey = isRequestParamsExist ? JSON.stringify(args) : DEFAULT_ENTRY_KEY;
                 const cacheEntry = cacheMap[argKey];
-    
+
                 if (cacheEntry) {
                     const { data, timestamp } = cacheEntry;
                     const isExpired = Date.now() - timestamp > this.cacheTime;
                     return isExpired ? null : (data as PromiseResult<T>);
                 }
             }
-    
+
             return null;
         } catch (error) {
             console.warn({ message: `Cache getting error cacheKey:${this.cacheKey}`, error });
             return null;
         }
     }
-    
+
     private async setCachedData(data: T, args: Array<any>): Promise<void> {
         if (!this.cacheKey) return;
-    
+
         try {
             const isRequestParamsExist = Boolean(args.length);
             const argKey = isRequestParamsExist ? JSON.stringify(args) : DEFAULT_ENTRY_KEY;
@@ -233,7 +234,7 @@ class AsyncSource<T> {
     }
 
     // Core request method
-    private async request(args: Array<any>, successHandler?: (response: T) => void, isImmediate?: boolean): Promise<void> {
+    private async request(args: TArgs, successHandler?: SuccessHandler<T>, isImmediate?: boolean) {
         this.isRequestPending = true;
 
         const requestId = await this.createRequestId(isImmediate);
@@ -244,7 +245,7 @@ class AsyncSource<T> {
 
             if (this.responseData && !this.isRequestPending) {
                 this.isFetchedData = true;
-                successHandler?.(this.responseData);
+                await successHandler?.(this.responseData);
 
                 if (!this.isUpdateCache) {
                     return;
@@ -258,7 +259,7 @@ class AsyncSource<T> {
                 this.isRequestPending = false;
                 this.isFetchedData = true;
                 this.responseData = response;
-                successHandler?.(response);
+                await successHandler?.(response);
 
                 if (this.isCacheEnabled) {
                     this.setCachedData(response, args);
