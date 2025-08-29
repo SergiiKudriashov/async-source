@@ -1,11 +1,12 @@
 type PromiseResult<T> = T extends PromiseLike<infer U> ? U : T;
 export type ResponseData<T> = T;
-export type ServiceMethod<T = any> = (...args: Array<any>) => Promise<T>;
+export type ServiceMethod<T = any, TArgs extends Array<any> = Array<any>> = (...args: TArgs) => Promise<T>;
+export type SuccessHandler<T> = (response: T) => unknown | Promise<unknown>;
 export type ErrorHandler = (error: any) => void;
 
-class AsyncSource<T> {
+class AsyncSource<T, TArgs extends Array<any> = Array<any>> {
     readonly onError: ErrorHandler;
-    readonly serviceMethod: ServiceMethod<T>;
+    readonly serviceMethod: ServiceMethod<T, TArgs>;
     readonly debounceTime: number;
     private responseData: PromiseResult<ReturnType<ServiceMethod>> = null;
     private isRequestPending = false;
@@ -13,7 +14,7 @@ class AsyncSource<T> {
     private lastRequestId = 0;
 
     constructor(
-        serviceMethod: ServiceMethod<T>,
+        serviceMethod: ServiceMethod<T, TArgs>,
         errorHandler: ErrorHandler = () => {},
         debounceTime = 100
     ) {
@@ -38,17 +39,17 @@ class AsyncSource<T> {
     }
 
     // Loads new dataSouse data
-    public async update(...args: Array<any>): Promise<void> {
+    public async update(...args: TArgs): Promise<void> {
         await this.request(args);
     }
 
     // Loads new dataSouse data if data is empty
-    public async updateIfEmpty(...args: Array<any>): Promise<void> {
+    public async updateIfEmpty(...args: TArgs): Promise<void> {
         if (this.data) return;
         await this.request(args);
     }
 
-    public async updateOnce(...args: Array<any>): Promise<void> {
+    public async updateOnce(...args: TArgs): Promise<void> {
         if (this.isLoading) {
             await new Promise(resolve => setTimeout(resolve, 100));
             await this.updateOnce(...args);
@@ -58,12 +59,12 @@ class AsyncSource<T> {
     }
 
     // Loads new dataSouse data ignoring debounce time
-    public async updateImmediate(...args: Array<any>): Promise<void> {
+    public async updateImmediate(...args: TArgs): Promise<void> {
         await this.request(args, undefined, true);
     }
 
     // Loads new dataSouse data and calls successHandler with response
-    async push(successHandler: (response: T) => unknown, ...args: Array<any>): Promise<void> {
+    async push(successHandler: SuccessHandler<T>, ...args: TArgs): Promise<void> {
         await this.request(args, successHandler);
     }
 
@@ -76,7 +77,7 @@ class AsyncSource<T> {
     }
 
     // Core request method
-    private async request(args: Array<any>, successHandler?: ((response: T) => void), isImmediate?: boolean) {
+    private async request(args: TArgs, successHandler?: SuccessHandler<T>, isImmediate?: boolean) {
         this.isRequestPending = true;
 
         const requestId = await this.createRequestId(isImmediate);
@@ -88,7 +89,7 @@ class AsyncSource<T> {
                 this.isRequestPending = false;
                 this.isFetchedData = true;
                 this.responseData = response;
-                successHandler?.(response);
+                await successHandler?.(response);
             }
         } catch (error) {
             if (this.isLastRequest(requestId)) {
