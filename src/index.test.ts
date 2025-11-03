@@ -27,7 +27,7 @@ const getRandom = {
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const flushPromises = () => new Promise(setImmediate);
 
-const makeInitialCall = async (sut: AsyncSource<unknown>) => {
+const makeInitialCall = async (sut: AsyncSource<unknown, any>) => {
     sut.update();
     await flushPromises();
     vi.clearAllMocks();
@@ -50,7 +50,7 @@ const createMockStorage = () => ({
 });
 
 // tests
-let sut: AsyncSource<unknown>;
+let sut: AsyncSource<unknown, any>;
 describe('Async source', () => {
     afterEach(() => {
         vi.clearAllMocks();
@@ -559,7 +559,7 @@ describe('Async source', () => {
     });
     describe("AsyncSource Cache Exception Handling", () => {
         let mockStorage: any;
-        let sut: AsyncSource<any>;
+        let sut: AsyncSource<any, any>;
     
         beforeEach(() => {
             mockStorage = createMockStorage();
