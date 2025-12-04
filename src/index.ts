@@ -50,7 +50,7 @@ class AsyncSource<T, TArgs extends Array<any> = Array<any>> {
 
     constructor(serviceMethod: ServiceMethod<T>, errorHandler?: ErrorHandler, debounceTime?: number);
 
-    constructor(serviceMethod: ServiceMethod<T>, errorHandler: ErrorHandler = () => {}, debounceTimeOrConfig: DebounceTimeOrConfig = 100) {k
+    constructor(serviceMethod: ServiceMethod<T>, errorHandler: ErrorHandler = () => {}, debounceTimeOrConfig: DebounceTimeOrConfig = 100) {
         this.serviceMethod = serviceMethod;
         this.onError = errorHandler;
 
