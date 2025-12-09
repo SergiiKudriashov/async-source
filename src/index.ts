@@ -186,7 +186,7 @@ class AsyncSource<T, TArgs extends Array<any> = Array<any>> {
         }
     }
 
-    private async getCachedData(args: Array<any>): Promise<PromiseResult<T> | null> {
+    public async getCachedData(args: Array<any>): Promise<PromiseResult<T> | null> {
         if (!this.cacheKey) return null;
 
         try {
@@ -210,6 +210,11 @@ class AsyncSource<T, TArgs extends Array<any> = Array<any>> {
             console.warn({ message: `Cache getting error cacheKey:${this.cacheKey}`, error });
             return null;
         }
+    }
+
+    public async isCacheExists(args: Array<any>): Promise<boolean> {
+        const cache = await this.getCachedData(args);
+        return cache !== null;
     }
 
     private async setCachedData(data: T, args: Array<any>): Promise<void> {
