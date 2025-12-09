@@ -21,7 +21,7 @@ interface AsyncSourceInstanceConfig {
 type CacheStorage = AsyncStorage | Storage | undefined | null;
 type DebounceTimeOrConfig = number | AsyncSourceInstanceConfig;
 type PromiseResult<T> = T extends PromiseLike<infer U> ? U : T;
-export type ResponseData<T> = T | null;
+export type ResponseData<T> = T;
 export type ServiceMethod<T = any, TArgs extends Array<any> = Array<any>> = (...args: TArgs) => Promise<T>;
 export type SuccessHandler<T> = (response: T) => unknown | Promise<unknown>;
 export type ErrorHandler = (error: any) => void;
@@ -71,6 +71,7 @@ class AsyncSource<T, TArgs extends Array<any> = Array<any>> {
             this.cacheTime = cacheTime;
             this.cacheStorage = cacheStorage;
             this.isUpdateCache = isUpdateCache;
+            this.updateCacheKey();
         }
     }
 
@@ -88,7 +89,7 @@ class AsyncSource<T, TArgs extends Array<any> = Array<any>> {
     }
 
     static async invalidateCacheKey(cacheKey: string, storage = AsyncSource.defaultStorage) {
-        const key = `${AsyncSource.cachePrefix}-${cacheKey}`
+        const key = `${AsyncSource.cachePrefix}-${cacheKey}`;
 
         try {
             if (cacheKey) await storage?.removeItem?.(key);
@@ -154,7 +155,7 @@ class AsyncSource<T, TArgs extends Array<any> = Array<any>> {
     private async syncCache(args: Array<any>) {
         this.updateCacheKey();
 
-        const cachedData = await this.getCachedData(args);
+        const cachedData = await this.getCachedData(...args);
         if (cachedData) {
             this.responseData = cachedData;
             this.isFetchedData = true;
@@ -173,7 +174,7 @@ class AsyncSource<T, TArgs extends Array<any> = Array<any>> {
         } else if (typeof this.requestCacheKey === 'string') {
             dynamicKey = this.requestCacheKey;
         }
-        this.cacheKey = `${AsyncSource.cachePrefix}-${dynamicKey}`
+        this.cacheKey = `${AsyncSource.cachePrefix}-${dynamicKey}`;
     }
 
     private async removeCachedData() {
@@ -186,7 +187,7 @@ class AsyncSource<T, TArgs extends Array<any> = Array<any>> {
         }
     }
 
-    public async getCachedData(args: Array<any>): Promise<PromiseResult<T> | null> {
+    public async getCachedData(...args: Array<any>): Promise<PromiseResult<T> | null> {
         if (!this.cacheKey) return null;
 
         try {
@@ -212,8 +213,8 @@ class AsyncSource<T, TArgs extends Array<any> = Array<any>> {
         }
     }
 
-    public async isCacheExists(args: Array<any>): Promise<boolean> {
-        const cache = await this.getCachedData(args);
+    public async isCacheExists(...args: Array<any>): Promise<boolean> {
+        const cache = await this.getCachedData(...args);
         return cache !== null;
     }
 
